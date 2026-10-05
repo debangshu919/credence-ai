@@ -10,7 +10,7 @@
     "contextMenus"
   ],
   "host_permissions": [
-    "http://localhost:8000/*",
+    "https://credence-ai-backend-rzip.onrender.com/*",
     "<all_urls>"
   ],
   "background": {

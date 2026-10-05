@@ -7,15 +7,23 @@ dependencies = [
     "fastapi[standard]",
     "httpx",
     "pydantic-settings",
-    "python-dotenv",
+    "python-dotenv>=1.2.2",
     "python-socketio",
     "openai",
     "beautifulsoup4",
-    "langchain",
-    "langchain-openai",
-    "langgraph",
-    "tavily-python",
+    "langchain>=1.2.13",
+    "langchain-google-genai>=4.2.1",
+    "langchain-openai>=1.1.11",
+    "langgraph>=1.1.3",
+    "pillow>=12.1.1",
+    "tavily-python>=0.7.23",
 ]
 
 [tool.fastapi]
 entrypoint = "app.main:app"
+
+[tool.ruff]
+lint.ignore = ["F841"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

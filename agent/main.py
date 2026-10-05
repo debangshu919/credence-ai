@@ -18,7 +18,22 @@ load_dotenv()
 # -----------------------------
 # INIT MODELS
 # -----------------------------
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2,api_key=os.getenv("OPENAI_API_KEY"))
+_api_key = (
+    os.getenv("GROQ_API_KEY")
+    or os.getenv("LLM_API_KEY")
+    or os.getenv("OPENAI_API_KEY")
+    or "groq-placeholder"
+)
+
+llm = ChatOpenAI(
+    model=os.getenv("LLM_MODEL_FAST", "openai/gpt-oss-20b"),
+    temperature=0.2,
+    base_url=os.getenv(
+        "LLM_BASE_URL",
+        "https://api.groq.com/openai/v1",
+    ),
+    api_key=_api_key,
+)
 search_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 

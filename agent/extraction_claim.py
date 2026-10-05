@@ -3,7 +3,22 @@ from agent_state import AgentState, ClaimExtractionOutput, Claim
 from dotenv import load_dotenv
 import os   
 load_dotenv()
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+_api_key = (
+    os.getenv("GROQ_API_KEY")
+    or os.getenv("LLM_API_KEY")
+    or os.getenv("OPENAI_API_KEY")
+    or "groq-placeholder"
+)
+
+llm = ChatOpenAI(
+    model=os.getenv("LLM_MODEL_FAST", "openai/gpt-oss-20b"),
+    temperature=0.2,
+    base_url=os.getenv(
+        "LLM_BASE_URL",
+        "https://api.groq.com/openai/v1",
+    ),
+    api_key=_api_key,
+)
 
 import re
 
@@ -143,7 +158,7 @@ Text:
 
         # Step 3: rank and select top 8
         unique_claims.sort(key=lambda x: x["score"], reverse=True)
-        selected = unique_claims[:8]
+        selected = unique_claims[:3]
 
         # Step 4: build final Claim objects
         claims: list[Claim] = []

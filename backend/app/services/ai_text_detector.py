@@ -38,7 +38,7 @@ async def detect_ai_text(text: str) -> AITextResult:
     """Analyze text for AI generation probability using an LLM."""
     client = AsyncOpenAI(
         base_url=settings.llm_base_url,
-        api_key=settings.llm_api_key,
+        api_key=settings.effective_llm_api_key,
     )
 
     # Truncate very long texts to avoid token limits

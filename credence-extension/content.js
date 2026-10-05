@@ -1,6 +1,5 @@
 // CredenceAI Fact Checker — Content Script
 
-const BACKEND_URL = 'http://localhost:8000';
 
 let fab = null;
 let sidebar = null;
@@ -126,81 +125,35 @@ async function runFactCheck(text) {
   openSidebar();
   expandedCards.clear();
 
-  // Show selected text
-  const textBox = document.getElementById('credence-selected-text-box');
-  if (textBox) textBox.textContent = text;
+  const textBox = document.getElementById(
+    'credence-selected-text-box'
+  );
 
-  // Show loading
+  if (textBox) {
+    textBox.textContent = text;
+  }
+
   setBodyContent(`
     <div id="credence-loading">
       <div class="credence-spinner"></div>
       <div class="credence-loading-text">ANALYZING...</div>
-      <div class="credence-step" id="credence-step-label">EXTRACTING CLAIMS</div>
+      <div class="credence-step" id="credence-step-label">
+        EXTRACTING CLAIMS
+      </div>
     </div>
   `);
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+    await chrome.runtime.sendMessage({
+      command: 'backend_fact_check',
+      text
     });
 
-    if (!response.ok) throw new Error(`Backend error: ${response.status}`);
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-    let report = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n\n');
-      buffer = lines.pop();
-
-      for (const lineGroup of lines) {
-        for (const line of lineGroup.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const dataStr = line.replace('data: ', '').trim();
-          if (!dataStr) continue;
-
-          try {
-            const parsed = JSON.parse(dataStr);
-            updateStepLabel(parsed.step);
-
-            if (parsed.step === 'pipeline_complete') {
-              const r = parsed.data;
-              const mergedClaims = (r.claims || []).map(c => {
-                const v = (r.verdicts || []).find(x => x.claim_id === c.id) || {};
-                return {
-                  id: c.id,
-                  claim: c.text,
-                  verdict: v.verdict || 'UNVERIFIABLE',
-                  confidence: v.confidence_score !== undefined
-                    ? (v.confidence_score > 1 ? v.confidence_score : Math.round(v.confidence_score * 100))
-                    : 0,
-                  explanation: v.reasoning || '',
-                  sources: v.cited_sources || [],
-                };
-              });
-              report = { ...r, claims: mergedClaims };
-            }
-          } catch {}
-        }
-      }
-    }
-
-    if (report) {
-      renderReport(report);
-    } else {
-      showError('No report received from backend.');
-    }
-
   } catch (err) {
-    showError(err.message || 'Failed to connect to CredenceAI backend.\nMake sure it is running on localhost:8000');
+    showError(
+      err.message ||
+      'Failed to start CredenceAI verification.'
+    );
   }
 }
 
@@ -338,11 +291,87 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// ── Background Message Listener ──────────────────────────────────────────
+// ── Background Message Listener ────────────────────────────────
+
 chrome.runtime.onMessage.addListener((message) => {
+
+  // Context-menu / background trigger
   if (message.command === 'run_fact_check' && message.text) {
     selectedText = message.text;
     hideFAB();
     runFactCheck(selectedText);
+    return;
+  }
+
+
+  // Backend SSE progress
+  if (message.command === 'fact_check_progress') {
+
+    const parsed = message.data;
+
+    if (!parsed) {
+      return;
+    }
+
+    updateStepLabel(parsed.step);
+
+    // Final result
+    if (
+      parsed.step === 'pipeline_complete' &&
+      parsed.status === 'completed'
+    ) {
+
+      const r = parsed.data;
+
+      const mergedClaims = (r.claims || []).map(c => {
+
+        const v =
+          (r.verdicts || []).find(
+            x => x.claim_id === c.id
+          ) || {};
+
+        return {
+          id: c.id,
+          claim: c.text,
+          verdict: v.verdict || 'UNVERIFIABLE',
+
+          confidence:
+            v.confidence_score !== undefined
+              ? (
+                  v.confidence_score > 1
+                    ? v.confidence_score
+                    : Math.round(
+                        v.confidence_score * 100
+                      )
+                )
+              : 0,
+
+          explanation: v.reasoning || '',
+
+          sources: v.cited_sources || []
+        };
+      });
+
+      const report = {
+        ...r,
+        claims: mergedClaims
+      };
+
+      renderReport(report);
+    }
+
+    return;
+  }
+
+
+  // Backend error
+  if (message.command === 'fact_check_error') {
+
+    showError(
+      message.error ||
+      'Failed to connect to the CredenceAI backend.'
+    );
+
+    return;
   }
 });
