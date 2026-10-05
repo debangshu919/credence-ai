@@ -102,7 +102,7 @@ It also provides AI-generated content detection for **text, images, and videos**
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/Synapse-CodeX/Credence-AI.git
+git clone https://github.com/debangshu919/credence-ai.git
 cd Credence-AI
 ```
 
